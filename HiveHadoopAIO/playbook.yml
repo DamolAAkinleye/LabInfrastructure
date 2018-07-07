@@ -1,0 +1,179 @@
+---
+# Hadoop install
+
+- hosts: all 
+  #user: vagrant 
+  #sudo: true
+  tasks:
+
+  # general
+  - name: upgrade all packages
+    yum: name=* state=latest
+    become: true
+
+  - name: install epel repo
+    yum: name=epel-release state=present
+    become: true
+
+  - name: install some useful tools 
+    yum: name={{ item }} state=present
+    with_items:
+      - vim
+      - net-tools
+      - bind-utils
+    become: true
+
+  # hadoop
+  - name: install wget 
+    yum: name=wget state=present
+    become: true
+
+  - name: install openjdk 1.8.0
+    yum: name=java state=present
+    become: true
+
+  - name: check if hadoop is already downloaded 
+    stat:
+      path: /home/vagrant/hadoop-2.7.4.tar.gz
+    register: hadoop_download
+
+  - name: download hadoop 2.7.4 
+    get_url:
+       #url=http://apache.claz.org/hadoop/common/hadoop-2.7.4/hadoop-2.7.4.tar.gz dest=/home/vagrant 
+       url=http://apache.cs.utah.edu/hadoop/common/hadoop-2.7.4/hadoop-2.7.4.tar.gz dest=/home/vagrant 
+    when: not hadoop_download.stat.exists
+
+  - name: check hadoop directory existence
+    stat: path=/opt/hadoop-2.7.4
+    register: hadoop_dir  
+
+  - name: extract hadoop
+    unarchive: src=/home/vagrant/hadoop-2.7.4.tar.gz dest=/opt copy=no
+    when: not hadoop_dir.stat.exists
+    become: true
+
+  - name: create symbolic link
+    file: src=/opt/hadoop-2.7.4 dest=/opt/hadoop state=link
+    become: true
+
+  - name: add the path of the Hadoop program to the PATH environment variable 
+    shell: echo "export PATH=/opt/hadoop-2.7.4/bin:$PATH" | sudo tee -a /etc/profile && source /etc/profile
+    become: true
+
+  - name: add hadoop user
+    user:    
+      name: hadoop
+      generate_ssh_key: yes
+      ssh_key_bits: 2048
+      ssh_key_file: .ssh/id_rsa
+    become: true
+
+  - name: chown hadoop dir
+    file: 
+      dest: /opt/hadoop/
+      owner: hadoop
+      group: hadoop
+      recurse: yes
+    become: true
+
+  - name: run ssh-keyscan to add localhost to known_hosts
+    shell: ssh-keyscan -t rsa {{ item }}  >> /etc/ssh/ssh_known_hosts
+    with_items:
+      - localhost
+      - 0.0.0.0
+    become: true
+
+  - name: add the authorized keys
+    shell: cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys && chmod 0600 ~/.ssh/authorized_keys
+    become: true
+    become_user: hadoop
+
+  - name: copy .bashrc
+    copy: src=bashrc dest=/home/hadoop/.bashrc
+    become: true
+    become_user: hadoop
+
+  - name: hadoop conf core-site
+    template: src={{ item.src }} dest={{ item.dest }}
+    with_items: 
+      - { src: 'hadoop_conf/core-site.xml', dest: '/opt/hadoop/etc/hadoop' }
+      - { src: 'hadoop_conf/hdfs-site.xml', dest: '/opt/hadoop/etc/hadoop' }
+      - { src: 'hadoop_conf/mapred-site.xml', dest: '/opt/hadoop/etc/hadoop' }
+      - { src: 'hadoop_conf/yarn-site.xml', dest: '/opt/hadoop/etc/hadoop' }
+      - { src: 'hadoop_conf/hadoop-env.sh', dest: '/opt/hadoop/etc/hadoop' }
+    become: true
+    become_user: hadoop
+
+  - name: check hadoop namenode directory existence
+    stat: path=/home/hadoop/hadoopdata/hdfs/namenode
+    register: namenode_dir  
+    become: true
+    become_user: hadoop
+
+  - name: set up namenode
+    command: /opt/hadoop/bin/hdfs namenode -format -nonInteractive
+    ignore_errors: True
+    when: not namenode_dir.stat.exists
+    become: true
+    become_user: hadoop
+
+  - name: start hdfs
+    command: /opt/hadoop/sbin/start-dfs.sh
+    ignore_errors: True
+    become: true
+    become_user: hadoop
+
+  - name: start resource manager and node manager
+    command: /opt/hadoop/sbin/start-yarn.sh
+    ignore_errors: True
+    become: true
+    become_user: hadoop
+
+  # Hive
+  - name: check if hive is already downloaded
+    stat:
+      path: /home/vagrant/apache-hive-2.3.1-bin.tar.gz
+    register: hive_download
+
+  - name: download hive 2.3.1
+    get_url:
+       url=http://apache.claz.org/hive/hive-2.3.1/apache-hive-2.3.1-bin.tar.gz dest=/home/vagrant
+    when: not hive_download.stat.exists
+
+  - name: check hive directory existence
+    stat: path=/opt/apache-hive-2.3.1-bin
+    register: hive_dir
+
+  - name: extract hive
+    unarchive: src=/home/vagrant/apache-hive-2.3.1-bin.tar.gz dest=/opt copy=no
+    when: not hive_dir.stat.exists
+    become: true
+
+  - name: create symbolic link
+    file: src=/opt/apache-hive-2.3.1-bin dest=/opt/hive state=link
+    become: true
+
+  - name: chown hive dir
+    file: 
+      dest: /opt/hive/
+      owner: hadoop
+      group: hadoop
+      recurse: yes
+    become: true
+
+  - name: Create /tmp and /user/hive/warehouse and set them chmod g+w in HDFS
+    shell: "{{ item }}"
+    #ignore_errors: True
+    become: true
+    become_user: hadoop
+    with_items:
+      - ". /home/hadoop/.bashrc && hdfs dfs -mkdir /tmp"
+      - ". /home/hadoop/.bashrc && hdfs dfs -mkdir -p /user/hive/warehouse"
+      - ". /home/hadoop/.bashrc && hdfs dfs -chmod g+w /tmp"
+      - ". /home/hadoop/.bashrc && hdfs dfs -chmod g+w /user/hive/warehouse"
+
+  - name: Generate derby metastore
+    shell: . /home/hadoop/.bashrc && /opt/hive/bin/schematool  -dbType derby -initSchema
+    ignore_errors: True
+    become: true
+    become_user: hadoop

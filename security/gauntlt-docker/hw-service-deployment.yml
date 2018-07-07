@@ -1,0 +1,84 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+  creationTimestamp: 2018-03-31T03:56:08Z
+  generation: 1
+  labels:
+    run: hw
+  name: hw
+  namespace: default
+  resourceVersion: "274"
+  selfLink: /apis/extensions/v1beta1/namespaces/default/deployments/hw
+  uid: 71a24160-3497-11e8-9724-080027856aca
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: hw
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: hw
+    spec:
+      containers:
+      - image: karthequian/helloworld
+        imagePullPolicy: Always
+        name: hw
+        ports:
+        - containerPort: 80
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+status:
+  availableReplicas: 1
+  conditions:
+  - lastTransitionTime: 2018-03-31T03:56:08Z
+    lastUpdateTime: 2018-03-31T03:56:08Z
+    message: Deployment has minimum availability.
+    reason: MinimumReplicasAvailable
+    status: "True"
+    type: Available
+  observedGeneration: 1
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1
+ ---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: 2018-03-31T03:59:56Z
+  labels:
+    run: hw
+  name: hw
+  namespace: default
+  resourceVersion: "387"
+  selfLink: /api/v1/namespaces/default/services/hw
+  uid: f937a398-3497-11e8-9724-080027856aca
+spec:
+  clusterIP: 10.102.172.146
+  externalTrafficPolicy: Cluster
+  ports:
+  - nodePort: 32616
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    run: hw
+  sessionAffinity: None
+  type: NodePort
+status:
+  loadBalancer: {}

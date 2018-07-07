@@ -1,0 +1,22 @@
+Feature: hello world with gaultnlet  using the generic command line attacks
+
+Scenario: Inside the guantl-docket, evaluate user account
+When I launch a "generic" attack with: 
+"""
+cat /etc/passwd
+"""
+Then the output should contain:
+"""
+root
+"""
+
+Scenario: Do a quick check for XSS
+ Given "arachni" is installed
+ And the following profile:
+ | name | value
+ | url  | http://docker.for.mac.localhost:8008/login
+ When I launch an "arachni" attack with:
+ """
+ arachni --check="xss" --scope-page-limit=1 <url>
+ """
+ Then the output should contain "o issues were detected."

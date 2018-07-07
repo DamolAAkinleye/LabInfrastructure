@@ -1,0 +1,10 @@
+stages:
+  - feedback
+
+collect-feedback:
+  stage: feedback
+  script:
+     - docker login --username=$DOCKER_REGISTRY_USERNAME --password=$DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY >> ./docker.logs
+     - docker pull $DOCKER_REGISTRY/$DOCKER_REGISTRY_USERNAME/collector-ads0-prerequisites >> docker.logs
+     - timeout --signal INT 180 docker run --env AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" --env AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" -v $(pwd)/:/project/src/:ro $DOCKER_REGISTRY/$DOCKER_REGISTRY_USERNAME/collector-ads0-prerequisites --s3 --student "$CI_PROJECT_PATH_SLUG" --module ads0-prerequisites /project
+

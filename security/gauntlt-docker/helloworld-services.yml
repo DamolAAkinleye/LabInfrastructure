@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: 2018-03-31T03:59:56Z
+  labels:
+    run: hw
+  name: hw
+  namespace: default
+  resourceVersion: "387"
+  selfLink: /api/v1/namespaces/default/services/hw
+  uid: f937a398-3497-11e8-9724-080027856aca
+spec:
+  clusterIP: 10.102.172.146
+  externalTrafficPolicy: Cluster
+  ports:
+  - nodePort: 32616
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    run: hw
+  sessionAffinity: None
+  type: NodePort
+status:
+  loadBalancer: {}
